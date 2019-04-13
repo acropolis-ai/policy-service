@@ -1,7 +1,7 @@
 const fs = require('fs');
 const GoogleSpreadsheet = require('google-spreadsheet');
 
-const nfipSheet = new GoogleSpreadsheet('1PZa11sQCOOGd0qhT27thCc3DK6d4Rl1ysqsne6SbMnk');
+const nfipSheet = new GoogleSpreadsheet(process.env.NFIP_GOOGLE_SHEET);
 const buildingTables = [
   'B-1', 'B-2A', 'B-2B', 'B-2C', 'B-2D', 'B-3A', 'B-3B', 'B-3C', 'B-3D', 'B-3E', 'B-3F',
   'B-4', 'B-5'

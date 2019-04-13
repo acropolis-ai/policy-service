@@ -3,11 +3,10 @@
   "version": "0.0.1",
   "description": "",
   "main": "load-sheets.js",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
     "google-spreadsheet": "2.0.7",
-    "mocha": "6.1.0"
+    "mocha": "6.1.2"
   },
   "scripts": {
     "test": "node load-sheets.js && mocha"

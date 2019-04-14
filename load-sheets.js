@@ -15,7 +15,10 @@ const buildingRates = { };
 const contentsRates = { };
 const tableLookup = { };
 
-const creds = require('./flood-insurance-manual-0adebe16b50b.json');
+const creds = {
+  client_email: process.env.NFIP_GOOGLE_SHEET_EMAIL,
+  private_key: process.env.NFIP_GOOGLE_SHEET_PK
+};
 
 function parseZone (zone) {
   if (!zone) return [ ];

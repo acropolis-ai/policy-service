@@ -4,6 +4,7 @@
   "description": "",
   "main": "load-sheets.js",
   "dependencies": {
+    "@google-cloud/datastore": "^3.1.2",
     "body-parser": "^1.18.3",
     "express": "^4.16.4"
   },
@@ -15,7 +16,7 @@
     "test": "node load-sheets.js && mocha"
   },
   "engines": {
-    "node": "10.15.3"
+    "node": "^10"
   },
   "author": "Travis Webb <me@traviswebb.com>",
   "license": "GPL3"

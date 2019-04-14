@@ -9,6 +9,4 @@ app.post('/rate', (req, res) => {
   res.json(rt.getRates(req.body));
 });
 
-app.listen(process.env.PORT || 8080, () => {
-  console.log('listening');
-});
+app.listen(process.env.PORT || 8080);

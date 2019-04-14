@@ -32,6 +32,8 @@ describe('RateTable', () => {
         substantially_improved: false
       });
 
+      console.log(rate);
+
       assert(rate.building_basic === 1.04);
       assert(rate.building_additional === -1);
     });

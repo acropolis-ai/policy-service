@@ -3,7 +3,10 @@
   "version": "0.0.1",
   "description": "",
   "main": "load-sheets.js",
-  "dependencies": {},
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.4"
+  },
   "devDependencies": {
     "google-spreadsheet": "2.0.7",
     "mocha": "6.1.2"

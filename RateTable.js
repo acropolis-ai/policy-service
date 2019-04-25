@@ -35,6 +35,44 @@ class RateTable {
 
   }
 
+  getPremium (params) {
+    const request = {
+      building_deductible,
+      contents_deductible,
+      building_coverage,
+      contents_coverage
+    };
+    const premium = { };
+
+    // 1. get base premium
+    const rates = this.getRates(params);
+    const limits = this.getLimits(params);
+    const deductibles = this.getDeductibles(params);
+
+    //premium.building_basic = rates.building_basic * 
+    premium.building_additional = rates.building_additional * building_coverage;
+
+    // 2. apply deductible factor
+
+
+
+
+
+  }
+  
+  getLimits (params) {
+    const { occupancy, program_type } = params;
+
+    return this.table.limits.find(limit => {
+
+    });
+
+  }
+
+  getDeductibles (params) {
+
+  }
+
   getRates (params) {
     const lookupTable = this.getLookupTable(params);
     const {
@@ -45,16 +83,17 @@ class RateTable {
       certification,
       elevation_above_bfe,
       replacement_cost_ratio,
-      floors
+      floors,
+      contents_location
     } = params;
 
-    const building = this.table.buildingRates[lookupTable]
+    const building = this.table.rates[lookupTable]
       .find(rate => {
         return [
+          rate.building_basic && rate.building_additional,
           !rate.firm_zone.length || (rate.firm_zone.includes(firm_zone)),
           !rate.building_type || (rate.building_type === building_type),
           !rate.occupancy_type || (rate.occupancy_type === occupancy_type),
-          !rate.residence_type || (rate.residence_type === residence_type),
           !rate.certification || (rate.certification === certification),
           this.compareRule(rate.elevation_above_bfe, elevation_above_bfe),
           this.compareRule(rate.floors, floors),
@@ -62,27 +101,22 @@ class RateTable {
         ].every(r => r);
       });
 
-    /*
-    const contents = this.table.contentsRates
+    const contents = this.table.rates[lookupTable]
       .filter(({ rate_table }) => rate_table === lookupTable)
       .find(rate => {
         return [
+          !!rate.contents_basic && !!rate.contents_additional,
           !rate.firm_zone.length || (rate.firm_zone.includes(firm_zone)),
           !rate.building_type || (rate.building_type === building_type),
-          (rate.occupancy_type === occupancy_type),
-          !rate.residence_type || (rate.residence_type === residence_type),
-          !rate.certification || (rate.certification === certification),
-          !rate.elevation_above_bfe || (rate.elevation_above_bfe === Math.round(elevation_above_bfe))
-          // contents location
+          !rate.occupancy_type || (rate.occupancy_type === occupancy_type),
+          !rate.contents_location || (rate.contents_location === contents_location),
+          this.compareRule(rate.floors, floors),
+          this.compareRule(rate.elevation_above_bfe, elevation_above_bfe),
+          !rate.certification || (rate.certification === certification)
         ].every(r => r);
-      });
-      */
-    const contents = { };
-
-    //console.log('building', building);
+      }) || { };
 
     return {
-      rate_table: lookupTable,
       building_basic: building.building_basic,
       building_additional: building.building_additional,
       contents_basic: contents.contents_basic,
@@ -110,7 +144,7 @@ class RateTable {
       ].every(r => r);
     });
 
-    console.log('firm_table', found[0].firm_table);
+    //console.log('firm_table', found[0].firm_table);
 
     return found[0].firm_table;
   }

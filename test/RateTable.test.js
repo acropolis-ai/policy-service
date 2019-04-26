@@ -415,4 +415,37 @@ describe('RateTable', () => {
 
     });
   });
+
+  describe('getPremium', () => {
+    it.only('2019 Rate Example 1', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 35000,
+        contents_coverage: 10000,
+        building_deductible: 1500,
+        contents_deductible: 1500,
+        construction_date: 'pre_firm',
+        residence_type: 'primary_residence',
+        program_type: 'emergency_program',
+        occupancy_type: 'residential_single_family',
+        floors: 1,
+        building_type: 'no_basement_enclosure',
+        srl_property: false,
+        substantially_improved: false,
+        contents_location: 'lowest_floor_only',
+        date: new Date('1/1/2019')
+      });
+
+      assert(premium.building_subtotal === 382);
+      assert(premium.contents_subtotal === 138);
+      assert(premium.combined_subtotal === 520);
+      assert(premium.icc_premium === 0);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 78);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 25);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 673);
+    });
+
+  });
 });

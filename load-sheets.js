@@ -15,28 +15,6 @@ const creds = {
 };
 */
 
-function parseZone (zone) {
-  if (!zone) return [ ];
-
-  const zones = zone.split(',');
-  return zones.map(zone => {
-    if (!/\-/.test(zone)) return zone;
-
-    const [ , letter, begin, end ] = /([A-Z]+)(\d+)\-[A-Z]+(\d+)/.exec(zone);
-    const zoneRange = [ ];
-
-    for (let i = parseInt(begin); i <= parseInt(end); i++) {
-      zoneRange.push(`${letter}${i}`);
-    }
-
-    return zoneRange;
-
-  }).reduce((flattened, zoneRange) => {
-    if (Array.isArray(zoneRange)) return flattened.concat(zoneRange);
-    return flattened.concat([ zoneRange ]);
-  }, [ ]);
-}
-
 function setAuth() {
   return new Promise((resolve, reject) => nfipSheet.useServiceAccountAuth(creds, resolve));
 }
@@ -59,29 +37,30 @@ function loadBuildingRates(sheets) {
       sheet.getRows({ }, function (err, rows) {
         if (err) return reject(err);
 
-        resolve(rows.map(row => ({
-          rate_table: row.ratetable,
-          effective_date: Date.parse(row.effectivedate),
-          building_basic: parseFloat(row.buildingbasic),
-          building_additional: parseFloat(row.buildingadditional),
-          contents_basic: parseFloat(row.contentsbasic),
-          contents_additional: parseFloat(row.contentsadditional),
-          contents_location: row.contentslocation || null,
-          residence_type: row.residencetype || null,
-          occupancy_type: row.occupancytype || null,
-          building_type: row.buildingtype || null,
-          firm_zone: parseZone(row.firmzone),
-          certification: row.certification || null,
-          floors: row.floors || null,
-          elevation_above_bfe: row.elevationabovebfe || null,
-          replacement_cost_ratio: row.replacementcostratio || null
-        })));
+        resolve({
+          tableName: sheet.title,
+          rows: rows.map(row => ({
+            effective_date: Date.parse(row.effectivedate),
+            building_basic: parseFloat(row.buildingbasic),
+            building_additional: parseFloat(row.buildingadditional),
+            contents_basic: parseFloat(row.contentsbasic),
+            contents_additional: parseFloat(row.contentsadditional),
+            contents_location: row.contentslocation || null,
+            residence_type: row.residencetype || null,
+            occupancy_type: row.occupancytype || null,
+            building_type: row.buildingtype || null,
+            firm_zone: row.firmzone,
+            certification: row.certification || null,
+            floors: row.floors || null,
+            elevation_above_bfe: row.elevationabovebfe || null,
+            replacement_cost_ratio: row.replacementcostratio || null
+          }))
+        });
       });
   })))
   .then(tables => {
     return tables.reduce((result, table) => {
-      const tableName = table[0].rate_table
-      result[tableName] = table;
+      result[table.tableName] = table.rows;
       return result;
     }, { });
   });
@@ -91,7 +70,7 @@ function loadLimits(sheets) {
   return new Promise((resolve, reject) => {
     limitsTable.getRows({ }, (err, rows) => {
       resolve(rows.map(row => ({
-        occupancy: row.occupancy,
+        occupancy_type: row.occupancytype,
         building_basic: parseInt(row.buildingbasic),
         building_additional: parseInt(row.buildingadditional),
         contents_basic: parseInt(row.contentsbasic),
@@ -101,7 +80,7 @@ function loadLimits(sheets) {
     });
   });
 }
-function loadDeductions(sheets) {
+function loadDeductibles(sheets) {
   const deductionsTable = sheets.find(sheet => sheet.title === '8B');
   return new Promise((resolve, reject) => {
     deductionsTable.getRows({ }, (err, rows) => {
@@ -110,7 +89,7 @@ function loadDeductions(sheets) {
         building_deductible: parseInt(row.buildingdeductible),
         contents_deductible: parseInt(row.contentsdeductible),
         deductible_factor_full_risk: parseFloat(row.deductiblefactorfullrisk),
-        deductible_factor_subsidized: parseFloat(row.deductiblefastersubsidized),
+        deductible_factor_subsidized: parseFloat(row.deductiblefactorsubsidized),
         occupancy_type: row.occupancytype
       })));
     });
@@ -122,7 +101,8 @@ function loadLookupTable(sheets) {
     lookupTable.getRows({ }, function (err, rows) {
       resolve(rows.map(row => ({
         firm_table: row.firmtable,
-        firm_zone: parseZone(row.firmzone),
+        //firm_zone: parseZone(row.firmzone),
+        firm_zone: row.firmzone,
         construction_date: row.constructiondate,
         residence_type: row.residencetype,
         srl_property: row.srlproperty ? (row.srlproperty === 'TRUE') : null,
@@ -153,14 +133,14 @@ async function load () {
     const rates = await loadBuildingRates(nfipSheet);
     const lookupTable = await loadLookupTable(nfipSheet);
     const limits = await loadLimits(nfipSheet);
-    const deductions = await loadDeductions(nfipSheet);
+    const deductibles = await loadDeductibles(nfipSheet);
 
     console.log('writing rate-table.json...');
     await writeFile({
       lookupTable,
       rates,
       limits,
-      deductions
+      deductibles
     });
   }
   catch (e) {

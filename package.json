@@ -13,7 +13,7 @@
     "mocha": "6.1.2"
   },
   "scripts": {
-    "test": "node load-sheets.js && mocha"
+    "test": "mocha"
   },
   "engines": {
     "node": "^10"

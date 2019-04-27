@@ -46,6 +46,7 @@ describe('RateTable', () => {
     it('2019 Rate Example 1', () => {
       const rate = rateTable.getRates({
         construction_date: 'pre_firm',
+        residence_type: 'primary_residence',
         program_type: 'emergency_program',
         occupancy_type: 'residential_single_family',
         floors: 1,
@@ -417,7 +418,7 @@ describe('RateTable', () => {
   });
 
   describe('getPremium', () => {
-    it.only('2019 Rate Example 1', () => {
+    it('2019 Rate Example 1', () => {
       const premium = rateTable.getPremium({
         building_coverage: 35000,
         contents_coverage: 10000,
@@ -445,6 +446,129 @@ describe('RateTable', () => {
       assert(premium.hfiaa_surcharge === 25);
       assert(premium.federal_policy_fee === 50);
       assert(premium.combined_total === 673);
+    });
+    it('2019 Rate Example 2', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 150000,
+        contents_coverage: 60000,
+        building_deductible: 1250,
+        contents_deductible: 1250,
+        program_type: 'regular_program',
+        residence_type: 'primary_residence',
+        srl_property: false,
+        substantially_improved: false,
+        construction_date: 'pre_firm',
+        firm_zone: 'B',
+        occupancy_type: 'residential_single_family',
+        floors: 2,
+        building_type: 'no_basement_enclosure',
+        contents_location: 'lowest_floor_and_higher',
+        date: new Date('1/1/2019')
+      });
+
+      assert(premium.building_subtotal === 906);
+      assert(premium.contents_subtotal === 592);
+      assert(premium.combined_subtotal === 1498);
+      assert(premium.icc_premium === 6);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 226);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 25);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 1805);
+    });
+    it('2019 Rate Example 3', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 200000,
+        contents_coverage: 75000,
+        building_deductible: 2000,
+        contents_deductible: 2000,
+        program_type: 'regular_program',
+        residence_type: 'primary_residence',
+        srl_property: false,
+        substantially_improved: false,
+        construction_date: 'pre_firm',
+        firm_zone: 'AE',
+        occupancy_type: 'residential_single_family',
+        floors: 2,
+        building_type: 'with_enclosure',
+        contents_location: 'enclosure_and_above',
+        date: new Date('1/1/2019')
+      });
+
+      assert(premium.building_subtotal === 3018);
+      assert(premium.contents_subtotal === 1183);
+      assert(premium.combined_subtotal === 4201);
+      assert(premium.icc_premium === 75);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 641);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 25);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 4992);
+    });
+    it('2019 Rate Example 4', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 250000,
+        contents_coverage: 100000,
+        building_deductible: 3000,
+        contents_deductible: 2000,
+        program_type: 'regular_program',
+        residence_type: 'non_primary_residence',
+        srl_property: false,
+        substantially_improved: false,
+        construction_date: 'pre_firm',
+        firm_zone: 'A15',
+        crs_rating: 4,
+        occupancy_type: 'residential_single_family',
+        floors: 3,
+        building_type: 'with_basement',
+        contents_location: 'basement_and_above',
+        date: new Date('1/1/2019')
+      });
+
+      //console.log(premium);
+
+      assert(premium.building_subtotal === 7569);
+      assert(premium.contents_subtotal === 3186);
+      assert(premium.combined_subtotal === 10755);
+      assert(premium.icc_premium === 65);
+      assert(premium.crs_discount === 3246);
+      assert(premium.reserve_fund_assessment === 1136);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 250);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 9010);
+    });
+    it('2019 Rate Example 5', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 200000,
+        contents_coverage: 40000,
+        building_deductible: 2000,
+        contents_deductible: 2000,
+        program_type: 'regular_program',
+        residence_type: 'primary_residence',
+        srl_property: true,
+        substantially_improved: false,
+        construction_date: 'pre_firm',
+        firm_zone: 'AE',
+        occupancy_type: 'residential_single_family',
+        floors: 2,
+        building_type: 'no_basement_enclosure',
+        contents_location: 'lowest_floor_and_higher',
+        date: new Date('1/1/2019')
+      });
+
+      assert(premium.building_subtotal === 4076);
+      assert(premium.contents_subtotal === 1192);
+      assert(premium.combined_subtotal === 5268);
+      assert(premium.icc_premium === 75);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 801);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 25);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 6219);
     });
 
   });

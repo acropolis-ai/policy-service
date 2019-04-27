@@ -80,6 +80,39 @@ function loadLimits(sheets) {
     });
   });
 }
+function loadPolicies(sheets) {
+  const policiesTable = sheets.find(sheet => sheet.title === '8A');
+  return new Promise((resolve, reject) => {
+    policiesTable.getRows({ }, (err, rows) => {
+      resolve(rows.map(row => ({
+        firm_zone: row.firmzone,
+        construction_date: row.constructiondate,
+        program_type: row.programtype,
+        policy_type: row.policytype,
+        minimum_deductible: row.minimumdeductible,
+        building_coverage: row.buildingcoverage,
+        certification: row.certification
+      })));
+    });
+  });
+}
+function loadIccTable(sheets) {
+  const iccTable = sheets.find(sheet => sheet.title === '9');
+  return new Promise((resolve, reject) => {
+    iccTable.getRows({ }, (err, rows) => {
+      resolve(rows.map(row => ({
+        rate_table: row.ratetable,
+        firm_zone: row.firmzone,
+        building_type: row.buildingtype,
+        construction_date: row.constructiondate,
+        elevation_above_bfe: row.elevationabovebfe,
+        occupancy_type: row.occupancytype,
+        building_coverage: row.buildingcoverage,
+        icc_premium: parseInt(row.iccpremium)
+      })));
+    });
+  });
+}
 function loadDeductibles(sheets) {
   const deductionsTable = sheets.find(sheet => sheet.title === '8B');
   return new Promise((resolve, reject) => {
@@ -134,13 +167,17 @@ async function load () {
     const lookupTable = await loadLookupTable(nfipSheet);
     const limits = await loadLimits(nfipSheet);
     const deductibles = await loadDeductibles(nfipSheet);
+    const policies = await loadPolicies(nfipSheet);
+    const icc = await loadIccTable(nfipSheet);
 
     console.log('writing rate-table.json...');
     await writeFile({
       lookupTable,
       rates,
       limits,
-      deductibles
+      deductibles,
+      policies,
+      icc
     });
   }
   catch (e) {

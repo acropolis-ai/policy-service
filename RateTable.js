@@ -20,6 +20,17 @@ function parseZone (zone) {
   }, [ ]);
 }
 
+function parseRateTable (table) {
+  if (!table) return [ ];
+
+  return table.split(',');
+}
+
+function getCrsDiscount (crsRating) {
+  if (!crsRating) return 0;
+  return (10 - crsRating) * .05;
+}
+
 class RateTable {
 
   constructor (rateTable) {
@@ -36,7 +47,7 @@ class RateTable {
       return parseInt(rule) === value;
     }
     if (/^[<>=]+/.test(rule)) {
-      const [ , comparator, operand ] = /^([<>=]+)(\-?\d)$/.exec(rule)
+      const [ , comparator, operand ] = /^([<>=]+)(\-?\d+)$/.exec(rule)
 
       if (comparator === '>') return value > parseInt(operand);
       if (comparator === '>=') return value >= parseInt(operand);
@@ -62,43 +73,62 @@ class RateTable {
       building_deductible,
       contents_deductible,
       building_coverage,
-      contents_coverage
+      contents_coverage,
+      crs_rating
     } = params;
 
-    const premium = { };
 
     const rates = this.getRates(params);
     const limits = this.getLimits(params);
+    const policy = this.getPolicy(params, building_coverage);
     const deductibles = this.getDeductibles(params);
-    const deductibleFactor = this.getDeductibleFactor(params, deductibles);
+    const deductibleFactor = this.getDeductibleFactor(deductibles, policy);
+    const iccPremium = this.getIccPremium(params, rates.rate_table);
+    let subtotal = 0;
 
-    console.log('limits', limits);
-    console.log('deductibles', deductibles);
+    const premium = {
+      rate_table: rates.rate_table
+    };
+
+    //console.log('limits', limits);
+    //console.log('deductibles', deductibles);
+    //console.log('policy', policy);
 
     // 1. get base premium - multiply coverage with determined rate
     const building_basic = Math.min(limits.building_basic, building_coverage);
     const building_additional = building_coverage - limits.building_basic;
     const contents_basic = Math.min(limits.contents_basic, contents_coverage);
     const contents_additional = contents_coverage - limits.contents_basic;
-    premium.building_basic = rates.building_basic * (building_basic / 100)
-    premium.building_additional = Math.max(0, rates.building_additional * (building_additional / 100));
-    premium.contents_basic = rates.contents_basic * (contents_basic / 100);
-    premium.contents_additional = Math.max(0, rates.contents_additional * (contents_additional / 100));
+    premium.building_basic_amount = building_basic;
+    premium.building_additional_amount = building_additional;
+    premium.contents_basic_amount = contents_basic;
+    premium.contents_additional_amount = contents_additional;
+    premium.building_basic = Math.round(rates.building_basic * (building_basic / 100));
+    premium.building_additional = Math.round(Math.max(0, rates.building_additional * (building_additional / 100)));
+    premium.contents_basic = Math.round(rates.contents_basic * (contents_basic / 100));
+    premium.contents_additional = Math.round(Math.max(0, rates.contents_additional * (contents_additional / 100)));
 
     // 2. apply deductible factor
     premium.deductible_factor = deductibleFactor;
     premium.building_subtotal = Math.round((premium.building_basic + premium.building_additional) * deductibleFactor);
     premium.contents_subtotal = Math.round((premium.contents_basic + premium.contents_additional) * deductibleFactor);
     premium.combined_subtotal = premium.building_subtotal + premium.contents_subtotal;
+    subtotal = premium.combined_subtotal;
 
     // 3. add ICC premium
-    premium.icc_premium = 0;
+    premium.icc_premium = iccPremium;
+
+    subtotal += premium.icc_premium;
 
     // 4. add CRS discount
-    premium.crs_discount = 0;
+    premium.crs_discount = Math.round(subtotal * getCrsDiscount(crs_rating));
+
+    subtotal -= premium.crs_discount;
 
     // 5. add reserve fund assessment
-    premium.reserve_fund_assessment = premium.combined_subtotal * 0.15;
+    premium.reserve_fund_assessment = Math.round(subtotal * 0.15);
+
+    subtotal += premium.reserve_fund_assessment;
 
     // 6. add probation surcharge
     premium.probation_surcharge = 0;
@@ -119,16 +149,55 @@ class RateTable {
       premium.federal_policy_fee = 50;
     }
 
-    premium.combined_total = premium.combined_subtotal +
-      premium.reserve_fund_assessment +
+    premium.combined_total = subtotal +
       premium.hfiaa_surcharge +
-      premium.icc_premium +
-      premium.crs_discount +
       premium.probation_surcharge +
       premium.federal_policy_fee;
 
-    console.log('premium', premium);
     return premium;
+  }
+
+  getIccPremium (params, rateTable) {
+    const {
+      firm_zone,
+      construction_date,
+      occupancy_type,
+      building_type,
+      elevated,
+      building_coverage,
+      elevation_above_bfe,
+      certification
+    } = params;
+
+
+    const rate = this.table.icc.find(rate => {
+      return (parseRateTable(rate.rate_table).includes(rateTable)) &&
+        (parseZone(rate.firm_zone).includes(firm_zone)) &&
+        (!rate.construction_date || (rate.construction_date === construction_date)) &&
+        (!rate.building_type || (rate.building_type === building_type)) &&
+        (this.compareRule(rate.elevation_above_bfe, elevation_above_bfe)) &&
+        (!rate.certification || (rate.certification === certification)) &&
+        (this.compareRule(rate.building_coverage, building_coverage));
+    });
+
+    if (!rate) return 0;
+
+    return rate.icc_premium;
+  }
+
+  getPolicy (params, buildingCoverage) {
+    const {
+      firm_zone,
+      construction_date,
+      program_type,
+    } = params;
+
+    return this.table.policies.find(policy => {
+      return (!policy.firm_zone || parseZone(policy.firm_zone).includes(firm_zone)) &&
+        (!policy.construction_date || (policy.construction_date === construction_date)) &&
+        (policy.program_type === program_type) &&
+        this.compareRule(policy.building_coverage, buildingCoverage);
+    });
   }
   
   getLimits (params) {
@@ -139,8 +208,8 @@ class RateTable {
     });
   }
 
-  getDeductibleFactor (params, deductibles) {
-    if (params.construction_date === 'pre_firm') {
+  getDeductibleFactor (deductibles, policy) {
+    if (policy.policy_type === 'subsidized') {
       return deductibles.deductible_factor_subsidized;
     }
     else {
@@ -204,7 +273,7 @@ class RateTable {
       }) || { };
 
     return {
-      table: lookupTable,
+      rate_table: lookupTable,
       building_basic: building.building_basic,
       building_additional: building.building_additional,
       contents_basic: contents.contents_basic,

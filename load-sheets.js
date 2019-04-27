@@ -107,6 +107,7 @@ function loadIccTable(sheets) {
         construction_date: row.constructiondate,
         elevation_above_bfe: row.elevationabovebfe,
         occupancy_type: row.occupancytype,
+        is_elevated: row.iselevated ? new Boolean(row.iselevated).valueOf() : null,
         building_coverage: row.buildingcoverage,
         icc_premium: parseInt(row.iccpremium)
       })));

@@ -1,3 +1,14 @@
+function isElevated (params) {
+  if (/^with_/.test(params.building_type)) {
+    return true;
+  }
+  if (/^elevated/.test(params.building_type)) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
 function parseZone (zone) {
   if (!zone) return [ ];
 
@@ -77,7 +88,6 @@ class RateTable {
       crs_rating
     } = params;
 
-
     const rates = this.getRates(params);
     const limits = this.getLimits(params);
     const policy = this.getPolicy(params, building_coverage);
@@ -142,7 +152,7 @@ class RateTable {
     }
     
     // 8. add federal policy fee
-    if (/^PRP/.test(rates.table)) {
+    if (/^PRP/.test(rates.table) || !building_coverage) {
       premium.federal_policy_fee = 25;
     }
     else {
@@ -163,21 +173,28 @@ class RateTable {
       construction_date,
       occupancy_type,
       building_type,
-      elevated,
       building_coverage,
       elevation_above_bfe,
       certification
     } = params;
 
+    if (!building_coverage) return 0;
+
+    const is_elevated = isElevated(params);
 
     const rate = this.table.icc.find(rate => {
-      return (parseRateTable(rate.rate_table).includes(rateTable)) &&
-        (parseZone(rate.firm_zone).includes(firm_zone)) &&
-        (!rate.construction_date || (rate.construction_date === construction_date)) &&
-        (!rate.building_type || (rate.building_type === building_type)) &&
-        (this.compareRule(rate.elevation_above_bfe, elevation_above_bfe)) &&
-        (!rate.certification || (rate.certification === certification)) &&
-        (this.compareRule(rate.building_coverage, building_coverage));
+      const buildingTypeRegex = new RegExp(rate.building_type);
+      const checks = [
+        (parseRateTable(rate.rate_table).includes(rateTable)),
+        (rate.is_elevated === null || (rate.is_elevated === is_elevated)),
+        (parseZone(rate.firm_zone).includes(firm_zone)),
+        (!rate.construction_date || (rate.construction_date === construction_date)),
+        (!rate.building_type || buildingTypeRegex.test(building_type)),
+        (this.compareRule(rate.elevation_above_bfe, elevation_above_bfe)),
+        (!rate.certification || (rate.certification === certification)),
+        (this.compareRule(rate.building_coverage, building_coverage))
+      ]
+      return checks.every(r => r);
     });
 
     if (!rate) return 0;
@@ -226,8 +243,8 @@ class RateTable {
 
     return this.table.deductibles.find(row => {
       return row.occupancy_type === occupancy_type &&
-        row.contents_deductible === contents_deductible &&
-        row.building_deductible === building_deductible;
+        (!contents_deductible || (row.contents_deductible === contents_deductible)) &&
+        (!building_deductible || (row.building_deductible === building_deductible));
     });
 
   }
@@ -245,6 +262,11 @@ class RateTable {
       floors,
       contents_location
     } = params;
+
+    // use post-firm full-risk when a pre-firm building has elevation data
+    if (Number.isInteger(elevation_above_bfe) && params.construction_date === 'pre_firm') {
+      params.construction_date = 'post_firm';
+    }
 
     const building = this.table.rates[lookupTable]
       .find(rate => {
@@ -288,9 +310,10 @@ class RateTable {
     }
 
     const found = this.table.lookupTable.find(row => {
+      const buildingTypeRegex = new RegExp('^' + row.building_type);
       return (row.program_type === program_type) &&
         ((row.construction_date === construction_date) || !row.construction_date) &&
-        ((row.building_type === building_type) || !row.building_type) &&
+        (buildingTypeRegex.test(building_type) || !row.building_type) &&
         ((row.residence_type === residence_type) || !row.residence_type) &&
         ((row.srl_property === srl_property) || row.srl_property === null) &&
         ((row.substantially_improved === substantially_improved) || row.substantially_improved === null) &&

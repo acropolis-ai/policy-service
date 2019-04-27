@@ -816,6 +816,133 @@ describe('RateTable', () => {
       assert(premium.federal_policy_fee === 50);
       assert(premium.combined_total === 659);
     });
+    it('2019 Rate Example 14', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 250000,
+        contents_coverage: 25000,
+        building_deductible: 3000,
+        contents_deductible: 2000,
+        program_type: 'regular_program',
+        residence_type: 'primary_residence',
+        construction_date: 'post_firm',
+        firm_zone: 'AH',
+        occupancy_type: 'residential_single_family',
+        floors: 1,
+        building_type: 'no_basement_enclosure',
+        elevation_above_bfe: -1,
+        certification: 'none',
+        contents_location: 'lowest_floor_only',
+        date: new Date('1/1/2019')
+      });
+
+      //console.log(premium);
+
+      assert(premium.building_subtotal === 1265);
+      assert(premium.contents_subtotal === 189);
+      assert(premium.combined_subtotal === 1454);
+      assert(premium.icc_premium === 5);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 219);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 25);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 1753);
+    });
+    it('2019 Rate Example 15', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 200000,
+        contents_coverage: 40000,
+        building_deductible: 1250,
+        contents_deductible: 1250,
+        program_type: 'regular_program',
+        //residence_type: 'primary_residence',
+        construction_date: 'post_firm',
+        firm_zone: 'AH',
+        occupancy_type: 'residential_multi_family',
+        floors: 2,
+        building_type: 'no_basement_enclosure',
+        elevation_above_bfe: 3,
+        certification: 'elevation_or_compliance',
+        contents_location: 'lowest_floor_and_higher',
+        date: new Date('1/1/2019')
+      });
+
+      //console.log(premium);
+
+      assert(premium.building_subtotal === 274);
+      assert(premium.contents_subtotal === 113);
+      assert(premium.combined_subtotal === 387);
+      assert(premium.icc_premium === 6);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 59);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 250);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 752);
+    });
+    it('2019 Rate Example 16', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 140000,
+        contents_coverage: 70000,
+        building_deductible: 1250,
+        contents_deductible: 1250,
+        program_type: 'regular_program',
+        construction_date: 'post_firm',
+        firm_zone: 'A',
+        occupancy_type: 'residential_multi_family',
+        floors: 2,
+        building_type: 'no_basement_enclosure',
+        elevation_above_bfe: 6,
+        certification: 'elevation_with_bfe',
+        contents_location: 'lowest_floor_and_higher',
+        date: new Date('1/1/2019')
+      });
+
+      //console.log(premium);
+
+      assert(premium.building_subtotal === 376);
+      assert(premium.contents_subtotal === 112);
+      assert(premium.combined_subtotal === 488);
+      assert(premium.icc_premium === 6);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 74);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 250);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 868);
+    });
+    it('2019 Rate Example 17', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 135000,
+        contents_coverage: 60000,
+        building_deductible: 1250,
+        contents_deductible: 1250,
+        program_type: 'regular_program',
+        construction_date: 'post_firm',
+        residence_type: 'primary_residence',
+        firm_zone: 'A',
+        occupancy_type: 'residential_single_family',
+        floors: 2,
+        building_type: 'no_basement_enclosure',
+        elevation_above_bfe: 5,
+        certification: 'elevation_without_bfe',
+        contents_location: 'lowest_floor_and_higher',
+        date: new Date('1/1/2019')
+      });
+
+      //console.log(premium);
+
+      assert(premium.building_subtotal === 393);
+      assert(premium.contents_subtotal === 105);
+      assert(premium.combined_subtotal === 498);
+      assert(premium.icc_premium === 6);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 76);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 25);
+      assert(premium.federal_policy_fee === 50);
+      assert(premium.combined_total === 655);
+    });
 
   });
 });

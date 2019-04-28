@@ -161,7 +161,7 @@ function loadDeductibles(sheets) {
   });
 }
 function loadLookupTable(sheets) {
-  const lookupTable = sheets.find(sheet => sheet.title === 'Table Lookup');
+  const lookupTable = sheets.find(sheet => sheet.title === 'Tables');
   return new Promise((resolve, reject) => {
     lookupTable.getRows({ }, function (err, rows) {
       resolve(rows.map(row => ({
@@ -197,6 +197,7 @@ async function load () {
     await setAuth();
 
     const nfipSheet = await getNfipSheet();
+
     console.log('parsing NFIP tables...');
     const rates = await loadRateTables(nfipSheet);
     const prpRates = await loadPrpRateTables(nfipSheet);

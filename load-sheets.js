@@ -86,7 +86,7 @@ function loadPolicies(sheets) {
     policiesTable.getRows({ }, (err, rows) => {
       resolve(rows.map(row => ({
         firm_zone: row.firmzone,
-        construction_date: row.constructiondate,
+        rating_type: row.ratingtype,
         program_type: row.programtype,
         policy_type: row.policytype,
         minimum_deductible: row.minimumdeductible,
@@ -104,7 +104,7 @@ function loadIccTable(sheets) {
         rate_table: row.ratetable,
         firm_zone: row.firmzone,
         building_type: row.buildingtype,
-        construction_date: row.constructiondate,
+        rating_type: row.ratingtype,
         elevation_above_bfe: row.elevationabovebfe,
         occupancy_type: row.occupancytype,
         is_elevated: row.iselevated ? new Boolean(row.iselevated).valueOf() : null,
@@ -137,7 +137,7 @@ function loadLookupTable(sheets) {
         firm_table: row.firmtable,
         //firm_zone: parseZone(row.firmzone),
         firm_zone: row.firmzone,
-        construction_date: row.constructiondate,
+        rating_type: row.ratingtype,
         residence_type: row.residencetype,
         srl_property: row.srlproperty ? (row.srlproperty === 'TRUE') : null,
         substantially_improved: row.substantiallyimproved ? (row.substantiallyimproved === 'TRUE') : null,

@@ -8,5 +8,8 @@ const rt = new RateTable(require('./rate-table'));
 app.post('/rate', (req, res) => {
   res.json(rt.getRates(req.body));
 });
+app.post('/premium', (req, res) => {
+  res.json(rt.getPremium(req.body));
+});
 
 app.listen(process.env.PORT || 8080);

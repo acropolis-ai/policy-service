@@ -1,58 +1,6 @@
-function isElevated (params) {
-  if (/^with_/.test(params.building_type)) {
-    return true;
-  }
-  if (/^elevated/.test(params.building_type)) {
-    return true;
-  }
-  else {
-    return false;
-  }
-}
-function parseZone (zone) {
-  if (!zone) return [ ];
-
-  const zones = zone.split(',');
-  return zones.map(zone => {
-    if (!/\-/.test(zone)) return zone;
-
-    const [ , letter, begin, end ] = /([A-Z]+)(\d+)\-[A-Z]+(\d+)/.exec(zone);
-    const zoneRange = [ ];
-
-    for (let i = parseInt(begin); i <= parseInt(end); i++) {
-      zoneRange.push(`${letter}${i}`);
-    }
-
-    return zoneRange;
-
-  }).reduce((flattened, zoneRange) => {
-    if (Array.isArray(zoneRange)) return flattened.concat(zoneRange);
-    return flattened.concat([ zoneRange ]);
-  }, [ ]);
-}
-
-function parseRateTable (table) {
-  if (!table) return [ ];
-
-  return table.split(',');
-}
-
-function getCrsDiscount (crsRating) {
-  if (!crsRating) return 0;
-  return (10 - crsRating) * .05;
-}
-
 class RateTable {
 
-  constructor (rateTable) {
-    this.table = rateTable;
-  }
-
-  validateRateQuery (params) {
-
-  }
-
-  compareRule (rule, value) {
+  static compareRule (rule, value) {
     if (!rule) return true;
     if (!isNaN(parseInt(rule))) {
       return parseInt(rule) === value;
@@ -71,15 +19,100 @@ class RateTable {
     return parseInt(low) <= value && parseInt(high) >= value;
   }
 
-  getPreferredRiskRates (params) {
+  static isElevated (params) {
+    if (/^with_/.test(params.building_type)) {
+      return true;
+    }
+    if (/^elevated/.test(params.building_type)) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+  static parseZone (zone) {
+    if (!zone) return [ ];
+
+    const zones = zone.split(',');
+    return zones.map(zone => {
+      if (!/\-/.test(zone)) return zone;
+
+      const [ , letter, begin, end ] = /([A-Z]+)(\d+)\-[A-Z]+(\d+)/.exec(zone);
+      const zoneRange = [ ];
+
+      for (let i = parseInt(begin); i <= parseInt(end); i++) {
+        zoneRange.push(`${letter}${i}`);
+      }
+
+      return zoneRange;
+
+    }).reduce((flattened, zoneRange) => {
+      if (Array.isArray(zoneRange)) return flattened.concat(zoneRange);
+      return flattened.concat([ zoneRange ]);
+    }, [ ]);
+  }
+
+  static parseRateTable (table) {
+    if (!table) return [ ];
+
+    return table.split(',');
+  }
+
+  static getCrsDiscount (crsRating) {
+    if (!crsRating) return 0;
+    return (10 - crsRating) * .05;
+  }
+
+  static setRatingType (params) {
+    if (params.rating_type) return;
+
+    const preFirm74 = Date.parse('1/1/1975');
+    const postFirm81 = Date.parse('10/1/1981')
+    const constructionDate = Date.parse(params.rating_type);
+    const isPostFirm81Zone = RateTable.parseZone('V,VE,V1-V99').includes(params.firm_zone);
+    const isPrpZone = RateTable.parseZone('B,C,X,AR,A99').includes(params.firm_zone);
+    const hasElevationData = Number.isFinite(params.elevation_above_bfe);
+
+    if (constructionDate < preFirm74) {
+      params.rating_type = 'pre_firm';
+    }
+    else if (constructionDate < postFirm81 && constructionDate >= preFirm74) {
+      params.rating_type = 'post_firm_75_81';
+    }
+    else if (constructionDate >= postFirm81 && isPostFirm81Zone) {
+      params.rating_type = 'post_1981'
+    }
+    else {
+      params.rating_type = params.rating_type;
+    }
+
+    // determine optional post-firm eligibility
+    if (params.rating_type === 'pre_firm' &&
+        Number.isInteger(params.elevation_above_bfe) &&
+        /^AR/.test(params.firm_zone)) {
+      params.optional_post_firm = true;
+    }
+
+    // determine PRP eligibility
+    if (params.request_prp && isPrpZone &&
+        params.program_type === 'regular_program' &&
+        params.occupancy_type === 'residential_single_family') {
+      params.prp_eligible = true;
+    }
+
+    // TODO determine newly mapped eligibility
 
   }
 
-  getNewlyMappedRates (params) {
+  constructor (rateTable) {
+    this.table = rateTable;
+  }
 
+  validatePolicy (params) {
   }
 
   getPremium (params) {
+
     const {
       building_deductible,
       contents_deductible,
@@ -99,10 +132,6 @@ class RateTable {
     const premium = {
       rate_table: rates.rate_table
     };
-
-    //console.log('limits', limits);
-    //console.log('deductibles', deductibles);
-    //console.log('policy', policy);
 
     // 1. get base premium - multiply coverage with determined rate
     const building_basic = Math.min(limits.building_basic, building_coverage);
@@ -131,7 +160,7 @@ class RateTable {
     subtotal += premium.icc_premium;
 
     // 4. add CRS discount
-    premium.crs_discount = Math.round(subtotal * getCrsDiscount(crs_rating));
+    premium.crs_discount = Math.round(subtotal * RateTable.getCrsDiscount(crs_rating));
 
     subtotal -= premium.crs_discount;
 
@@ -170,7 +199,7 @@ class RateTable {
   getIccPremium (params, rateTable) {
     const {
       firm_zone,
-      construction_date,
+      rating_type,
       occupancy_type,
       building_type,
       building_coverage,
@@ -180,19 +209,19 @@ class RateTable {
 
     if (!building_coverage) return 0;
 
-    const is_elevated = isElevated(params);
+    const is_elevated = RateTable.isElevated(params);
 
     const rate = this.table.icc.find(rate => {
       const buildingTypeRegex = new RegExp(rate.building_type);
       const checks = [
-        (parseRateTable(rate.rate_table).includes(rateTable)),
+        (RateTable.parseRateTable(rate.rate_table).includes(rateTable)),
         (rate.is_elevated === null || (rate.is_elevated === is_elevated)),
-        (parseZone(rate.firm_zone).includes(firm_zone)),
-        (!rate.construction_date || (rate.construction_date === construction_date)),
+        (RateTable.parseZone(rate.firm_zone).includes(firm_zone)),
+        (!rate.rating_type || (rate.rating_type === rating_type)),
         (!rate.building_type || buildingTypeRegex.test(building_type)),
-        (this.compareRule(rate.elevation_above_bfe, elevation_above_bfe)),
+        (RateTable.compareRule(rate.elevation_above_bfe, elevation_above_bfe)),
         (!rate.certification || (rate.certification === certification)),
-        (this.compareRule(rate.building_coverage, building_coverage))
+        (RateTable.compareRule(rate.building_coverage, building_coverage))
       ]
       return checks.every(r => r);
     });
@@ -205,15 +234,15 @@ class RateTable {
   getPolicy (params, buildingCoverage) {
     const {
       firm_zone,
-      construction_date,
+      rating_type,
       program_type,
     } = params;
 
     return this.table.policies.find(policy => {
-      return (!policy.firm_zone || parseZone(policy.firm_zone).includes(firm_zone)) &&
-        (!policy.construction_date || (policy.construction_date === construction_date)) &&
+      return (!policy.firm_zone || RateTable.parseZone(policy.firm_zone).includes(firm_zone)) &&
+        (!policy.rating_type || (policy.rating_type === rating_type)) &&
         (policy.program_type === program_type) &&
-        this.compareRule(policy.building_coverage, buildingCoverage);
+        RateTable.compareRule(policy.building_coverage, buildingCoverage);
     });
   }
   
@@ -263,11 +292,6 @@ class RateTable {
       contents_location
     } = params;
 
-    // use post-firm full-risk when a pre-firm building has elevation data
-    if (Number.isInteger(elevation_above_bfe) && params.construction_date === 'pre_firm') {
-      params.construction_date = 'post_firm';
-    }
-
     const building = this.table.rates[lookupTable]
       .find(rate => {
         return [
@@ -276,9 +300,9 @@ class RateTable {
           !rate.occupancy_type || (rate.occupancy_type === occupancy_type),
           !rate.certification || (rate.certification === certification),
           !rate.replacement_cost_ratio || (rate.replacement_cost_ratio === replacement_cost_ratio),
-          this.compareRule(rate.elevation_above_bfe, elevation_above_bfe),
-          this.compareRule(rate.floors, floors),
-          !rate.firm_zone.length || (parseZone(rate.firm_zone).includes(firm_zone))
+          RateTable.compareRule(rate.elevation_above_bfe, elevation_above_bfe),
+          RateTable.compareRule(rate.floors, floors),
+          !rate.firm_zone.length || (RateTable.parseZone(rate.firm_zone).includes(firm_zone))
         ].every(r => r);
       });
 
@@ -289,9 +313,9 @@ class RateTable {
           (!rate.occupancy_type || (rate.occupancy_type === occupancy_type)) &&
           (!rate.contents_location || (rate.contents_location === contents_location)) &&
           (!rate.certification || (rate.certification === certification)) &&
-          (this.compareRule(rate.floors, floors)) &&
-          (this.compareRule(rate.elevation_above_bfe, elevation_above_bfe)) &&
-          (!rate.firm_zone.length || (parseZone(rate.firm_zone).includes(firm_zone)));
+          (RateTable.compareRule(rate.floors, floors)) &&
+          (RateTable.compareRule(rate.elevation_above_bfe, elevation_above_bfe)) &&
+          (!rate.firm_zone.length || (RateTable.parseZone(rate.firm_zone).includes(firm_zone)));
       }) || { };
 
     return {
@@ -303,21 +327,29 @@ class RateTable {
     };
   }
 
-  getLookupTable ({ firm_zone, construction_date, residence_type, srl_property, substantially_improved, program_type, elevation_above_bfe, building_type }) {
-    const hasElevationData = Number.isFinite(elevation_above_bfe);
-    if (hasElevationData && construction_date === 'pre_firm') {
-      construction_date = 'post_firm'
-    }
+  getLookupTable (params) {
+    RateTable.setRatingType(params);
+
+    const {
+      firm_zone,
+      rating_type,
+      residence_type,
+      srl_property,
+      substantially_improved,
+      program_type,
+      elevation_above_bfe,
+      building_type
+    } = params;
 
     const found = this.table.lookupTable.find(row => {
       const buildingTypeRegex = new RegExp('^' + row.building_type);
       return (row.program_type === program_type) &&
-        ((row.construction_date === construction_date) || !row.construction_date) &&
+        ((row.rating_type === rating_type) || !row.rating_type) &&
         (buildingTypeRegex.test(building_type) || !row.building_type) &&
         ((row.residence_type === residence_type) || !row.residence_type) &&
         ((row.srl_property === srl_property) || row.srl_property === null) &&
         ((row.substantially_improved === substantially_improved) || row.substantially_improved === null) &&
-        (!row.firm_zone.length || (parseZone(row.firm_zone).includes(firm_zone)));
+        (!row.firm_zone.length || (RateTable.parseZone(row.firm_zone).includes(firm_zone)));
     });
 
     return found.firm_table;

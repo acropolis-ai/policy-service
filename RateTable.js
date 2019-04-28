@@ -138,10 +138,10 @@ class RateTable {
       const building_additional = building_coverage - limits.building_basic;
       const contents_basic = Math.min(limits.contents_basic, contents_coverage);
       const contents_additional = contents_coverage - limits.contents_basic;
-      premium.building_basic_amount = building_basic;
-      premium.building_additional_amount = building_additional;
-      premium.contents_basic_amount = contents_basic;
-      premium.contents_additional_amount = contents_additional;
+      premium.building_basic_coverage = building_basic;
+      premium.building_additional_coverage = building_additional;
+      premium.contents_basic_coverage = contents_basic;
+      premium.contents_additional_coverage = contents_additional;
       premium.building_basic = Math.round(rates.building_basic * (building_basic / 100));
       premium.building_additional = Math.round(Math.max(0, rates.building_additional * (building_additional / 100)));
       premium.contents_basic = Math.round(rates.contents_basic * (contents_basic / 100));
@@ -384,7 +384,7 @@ class RateTable {
           !rate.replacement_cost_ratio || (rate.replacement_cost_ratio === replacement_cost_ratio),
           RateTable.compareRule(rate.elevation_above_bfe, elevation_above_bfe),
           RateTable.compareRule(rate.floors, floors),
-          !rate.firm_zone.length || (RateTable.parseZone(rate.firm_zone).includes(firm_zone))
+          !rate.firm_zone || (RateTable.parseZone(rate.firm_zone).includes(firm_zone))
         ].every(r => r);
       });
 
@@ -397,7 +397,7 @@ class RateTable {
           (!rate.certification || (rate.certification === certification)) &&
           (RateTable.compareRule(rate.floors, floors)) &&
           (RateTable.compareRule(rate.elevation_above_bfe, elevation_above_bfe)) &&
-          (!rate.firm_zone.length || (RateTable.parseZone(rate.firm_zone).includes(firm_zone)));
+          (!rate.firm_zone || (RateTable.parseZone(rate.firm_zone).includes(firm_zone)));
       }) || { };
 
     return {
@@ -432,7 +432,7 @@ class RateTable {
         ((row.residence_type === residence_type) || !row.residence_type) &&
         ((row.srl_property === srl_property) || row.srl_property === null) &&
         ((row.substantially_improved === substantially_improved) || row.substantially_improved === null) &&
-        (!row.firm_zone.length || (RateTable.parseZone(row.firm_zone).includes(firm_zone))) &&
+        (!row.firm_zone || (RateTable.parseZone(row.firm_zone).includes(firm_zone))) &&
         (!request_prp || (row.request_prp === request_prp));
     });
 

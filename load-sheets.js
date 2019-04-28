@@ -80,7 +80,7 @@ function loadRateTables(sheets) {
             residence_type: row.residencetype || null,
             occupancy_type: row.occupancytype || null,
             building_type: row.buildingtype || null,
-            firm_zone: row.firmzone,
+            firm_zone: row.firmzone || null,
             certification: row.certification || null,
             floors: row.floors || null,
             elevation_above_bfe: row.elevationabovebfe || null,
@@ -116,7 +116,7 @@ function loadPolicies(sheets) {
   return new Promise((resolve, reject) => {
     policiesTable.getRows({ }, (err, rows) => {
       resolve(rows.map(row => ({
-        firm_zone: row.firmzone,
+        firm_zone: row.firmzone || null,
         rating_type: row.ratingtype,
         program_type: row.programtype,
         policy_type: row.policytype,
@@ -133,7 +133,7 @@ function loadIccTable(sheets) {
     iccTable.getRows({ }, (err, rows) => {
       resolve(rows.map(row => ({
         rate_table: row.ratetable,
-        firm_zone: row.firmzone,
+        firm_zone: row.firmzone || null,
         building_type: row.buildingtype,
         rating_type: row.ratingtype,
         elevation_above_bfe: row.elevationabovebfe,
@@ -166,7 +166,7 @@ function loadLookupTable(sheets) {
     lookupTable.getRows({ }, function (err, rows) {
       resolve(rows.map(row => ({
         firm_table: row.firmtable,
-        firm_zone: row.firmzone,
+        firm_zone: row.firmzone || null,
         rating_type: row.ratingtype,
         residence_type: row.residencetype,
         srl_property: row.srlproperty ? (row.srlproperty === 'TRUE') : null,

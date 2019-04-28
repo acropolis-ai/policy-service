@@ -108,11 +108,7 @@ class RateTable {
     this.table = rateTable;
   }
 
-  validatePolicy (params) {
-  }
-
   getPremium (params) {
-
     const {
       building_deductible,
       contents_deductible,
@@ -121,38 +117,63 @@ class RateTable {
       crs_rating
     } = params;
 
-    const rates = this.getRates(params);
-    const limits = this.getLimits(params);
-    const policy = this.getPolicy(params, building_coverage);
-    const deductibles = this.getDeductibles(params);
-    const deductibleFactor = this.getDeductibleFactor(deductibles, policy);
-    const iccPremium = this.getIccPremium(params, rates.rate_table);
     let subtotal = 0;
-
+    const rates = this.getRates(params);
     const premium = {
-      rate_table: rates.rate_table
+      rate_table: rates.rate_table,
+      params
     };
 
-    // 1. get base premium - multiply coverage with determined rate
-    const building_basic = Math.min(limits.building_basic, building_coverage);
-    const building_additional = building_coverage - limits.building_basic;
-    const contents_basic = Math.min(limits.contents_basic, contents_coverage);
-    const contents_additional = contents_coverage - limits.contents_basic;
-    premium.building_basic_amount = building_basic;
-    premium.building_additional_amount = building_additional;
-    premium.contents_basic_amount = contents_basic;
-    premium.contents_additional_amount = contents_additional;
-    premium.building_basic = Math.round(rates.building_basic * (building_basic / 100));
-    premium.building_additional = Math.round(Math.max(0, rates.building_additional * (building_additional / 100)));
-    premium.contents_basic = Math.round(rates.contents_basic * (contents_basic / 100));
-    premium.contents_additional = Math.round(Math.max(0, rates.contents_additional * (contents_additional / 100)));
+    if (rates.base_premium) {
+      premium.combined_subtotal = subtotal = rates.base_premium;
+    }
+    else {
+      const limits = this.getLimits(params);
+      const policy = this.getPolicy(params, building_coverage);
+      const deductibles = this.getDeductibles(params);
+      const deductibleFactor = this.getDeductibleFactor(deductibles, policy);
 
-    // 2. apply deductible factor
-    premium.deductible_factor = deductibleFactor;
-    premium.building_subtotal = Math.round((premium.building_basic + premium.building_additional) * deductibleFactor);
-    premium.contents_subtotal = Math.round((premium.contents_basic + premium.contents_additional) * deductibleFactor);
-    premium.combined_subtotal = premium.building_subtotal + premium.contents_subtotal;
-    subtotal = premium.combined_subtotal;
+      // 1. get base premium - multiply coverage with determined rate
+      const building_basic = Math.min(limits.building_basic, building_coverage);
+      const building_additional = building_coverage - limits.building_basic;
+      const contents_basic = Math.min(limits.contents_basic, contents_coverage);
+      const contents_additional = contents_coverage - limits.contents_basic;
+      premium.building_basic_amount = building_basic;
+      premium.building_additional_amount = building_additional;
+      premium.contents_basic_amount = contents_basic;
+      premium.contents_additional_amount = contents_additional;
+      premium.building_basic = Math.round(rates.building_basic * (building_basic / 100));
+      premium.building_additional = Math.round(Math.max(0, rates.building_additional * (building_additional / 100)));
+      premium.contents_basic = Math.round(rates.contents_basic * (contents_basic / 100));
+      premium.contents_additional = Math.round(Math.max(0, rates.contents_additional * (contents_additional / 100)));
+
+      // 2. apply deductible factor
+      premium.deductible_factor = deductibleFactor;
+      premium.building_subtotal = Math.round((premium.building_basic + premium.building_additional) * deductibleFactor);
+      premium.contents_subtotal = Math.round((premium.contents_basic + premium.contents_additional) * deductibleFactor);
+      premium.combined_subtotal = premium.building_subtotal + premium.contents_subtotal;
+      subtotal = premium.combined_subtotal;
+    }
+    
+    subtotal = this.applyPremiumSurcharges(params, rates, premium, subtotal);
+
+    premium.combined_total = subtotal +
+      premium.hfiaa_surcharge +
+      premium.probation_surcharge +
+      premium.federal_policy_fee;
+
+    const alternatePremium = this.getAlternatePremium(params);
+
+    if (!alternatePremium || alternatePremium.combined_total > premium.combined_total) {
+      return premium;
+    }
+    else {
+      return alternatePremium;
+    }
+  }
+
+  applyPremiumSurcharges (params, rates, premium, subtotal) {
+    const iccPremium = this.getIccPremium(params, rates.rate_table);
 
     // 3. add ICC premium
     premium.icc_premium = iccPremium;
@@ -160,7 +181,7 @@ class RateTable {
     subtotal += premium.icc_premium;
 
     // 4. add CRS discount
-    premium.crs_discount = Math.round(subtotal * RateTable.getCrsDiscount(crs_rating));
+    premium.crs_discount = Math.round(subtotal * RateTable.getCrsDiscount(params.crs_rating));
 
     subtotal -= premium.crs_discount;
 
@@ -181,19 +202,26 @@ class RateTable {
     }
     
     // 8. add federal policy fee
-    if (/^PRP/.test(rates.table) || !building_coverage) {
+    if (/^PRP/.test(rates.rate_table) || !params.building_coverage) {
       premium.federal_policy_fee = 25;
     }
     else {
       premium.federal_policy_fee = 50;
     }
+    
+    return subtotal;
+  }
 
-    premium.combined_total = subtotal +
-      premium.hfiaa_surcharge +
-      premium.probation_surcharge +
-      premium.federal_policy_fee;
-
-    return premium;
+  getAlternatePremium (params) {
+    if (params.prp_eligible) {
+      return this.getPremium({ ...params, rating_type: 'prp' });
+    }
+    else if (params.optional_post_firm) {
+      return this.getPremium({ ...params, rating_type: 'post_firm' });
+    }
+    else {
+      return null
+    }
   }
 
   getIccPremium (params, rateTable) {
@@ -209,14 +237,37 @@ class RateTable {
 
     if (!building_coverage) return 0;
 
+    // TODO move to spreadsheet
+    /*
+    if (/^PRP/.test(rateTable)) {
+      if (/^residential/.test(occupancy_type)) {
+        if (building_coverage <= 230000) {
+          return 5;
+        }
+        else {
+          return 4;
+        }
+      }
+      else {
+        if (building_coverage <= 480000) {
+          return 5;
+        }
+        else {
+          return 4;
+        }
+      }
+    }
+    */
+
     const is_elevated = RateTable.isElevated(params);
 
     const rate = this.table.icc.find(rate => {
       const buildingTypeRegex = new RegExp(rate.building_type);
       const checks = [
         (RateTable.parseRateTable(rate.rate_table).includes(rateTable)),
+        (!rate.occupancy_type || (rate.occupancy_type === occupancy_type)),
         (rate.is_elevated === null || (rate.is_elevated === is_elevated)),
-        (RateTable.parseZone(rate.firm_zone).includes(firm_zone)),
+        (!rate.firm_zone || RateTable.parseZone(rate.firm_zone).includes(firm_zone)),
         (!rate.rating_type || (rate.rating_type === rating_type)),
         (!rate.building_type || buildingTypeRegex.test(building_type)),
         (RateTable.compareRule(rate.elevation_above_bfe, elevation_above_bfe)),
@@ -278,6 +329,33 @@ class RateTable {
 
   }
 
+  getPrpRates (params, lookupTable) {
+    const {
+      occupancy_type,
+      building_type,
+      contents_location,
+      building_coverage,
+      contents_coverage
+    } = params;
+
+    //console.log('rate table', this.table.rates[lookupTable]);
+    //console.log('lookupTable', lookupTable);
+
+    const result = this.table.rates[lookupTable]
+      .find(rate => {
+        return (!rate.occupancy_type || (rate.occupancy_type === occupancy_type)) &&
+          (!rate.building_type || (rate.building_type === building_type)) &&
+          (!rate.contents_location || (rate.contents_location === contents_location)) &&
+          (!rate.building_coverage || (rate.building_coverage === building_coverage)) &&
+          (!rate.contents_coverage || (rate.contents_coverage === contents_coverage));
+      });
+
+    return {
+      rate_table: lookupTable,
+      base_premium: result.base_premium
+    };
+  }
+
   getRates (params) {
     const lookupTable = this.getLookupTable(params);
     const {
@@ -291,6 +369,10 @@ class RateTable {
       floors,
       contents_location
     } = params;
+
+    if (/^PRP/.test(lookupTable)) {
+      return this.getPrpRates(params, lookupTable);
+    }
 
     const building = this.table.rates[lookupTable]
       .find(rate => {
@@ -338,7 +420,8 @@ class RateTable {
       substantially_improved,
       program_type,
       elevation_above_bfe,
-      building_type
+      building_type,
+      request_prp
     } = params;
 
     const found = this.table.lookupTable.find(row => {
@@ -349,7 +432,8 @@ class RateTable {
         ((row.residence_type === residence_type) || !row.residence_type) &&
         ((row.srl_property === srl_property) || row.srl_property === null) &&
         ((row.substantially_improved === substantially_improved) || row.substantially_improved === null) &&
-        (!row.firm_zone.length || (RateTable.parseZone(row.firm_zone).includes(firm_zone)));
+        (!row.firm_zone.length || (RateTable.parseZone(row.firm_zone).includes(firm_zone))) &&
+        (!request_prp || (row.request_prp === request_prp));
     });
 
     return found.firm_table;

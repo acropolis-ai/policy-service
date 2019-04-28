@@ -385,20 +385,6 @@ describe('RateTable', () => {
       assert(rate.contents_basic === 0.30);
       assert(rate.contents_additional === 0.09);
     });
-    it.skip('PRP Rating Example Table 3A', () => {
-      const rate = rateTable.getRates({
-        program_type: 'regular_program',
-        request_prp: true,
-        rating_type: 'post_firm',
-        residence_type: 'primary_residence',
-        firm_zone: 'X',
-        no_disaster_benefits: true,
-        no_multiple_claims: true,
-        occupancy_type: 'residential_single_family',
-        floors: 2,
-        date: new Date('1/1/2019')
-      });
-    });
     it.skip('Newly Mapped Rating Example Table 3', () => {
       const rate = rateTable.getRates({
         program_type: 'regular_program',
@@ -853,7 +839,6 @@ describe('RateTable', () => {
         building_deductible: 1250,
         contents_deductible: 1250,
         program_type: 'regular_program',
-        //residence_type: 'primary_residence',
         rating_type: 'post_firm',
         firm_zone: 'AH',
         occupancy_type: 'residential_multi_family',
@@ -940,6 +925,36 @@ describe('RateTable', () => {
       assert(premium.hfiaa_surcharge === 25);
       assert(premium.federal_policy_fee === 50);
       assert(premium.combined_total === 655);
+    });
+    it('PRP Rating Example Table 3A', () => {
+      const premium = rateTable.getPremium({
+        building_coverage: 200000,
+        contents_coverage: 80000,
+        building_deductible: 1250,
+        contents_deductible: 1250,
+        program_type: 'regular_program',
+        request_prp: true,
+        rating_type: 'post_firm',
+        residence_type: 'primary_residence',
+        firm_zone: 'X',
+        no_disaster_benefits: true,
+        building_type: 'no_basement_enclosure',
+        no_multiple_claims: true,
+        occupancy_type: 'residential_single_family',
+        floors: 2,
+        date: new Date('1/1/2019')
+      });
+
+      //console.log(premium);
+
+      assert(premium.combined_subtotal === 345);
+      assert(premium.icc_premium === 5);
+      assert(premium.crs_discount === 0);
+      assert(premium.reserve_fund_assessment === 53);
+      assert(premium.probation_surcharge === 0);
+      assert(premium.hfiaa_surcharge === 25);
+      assert(premium.federal_policy_fee === 25);
+      assert(premium.combined_total === 453);
     });
 
   });

@@ -6,6 +6,7 @@ const rateTables = [
   '1', '2A', '2B', '2C', '2D', '3A', '3B', '3C', '3D', '3E', '3F',
   '4', '5'
 ];
+const prpRateTables = [ 'PRP_3A', 'PRP_3B' ];
 
 const creds = require('./flood-insurance-manual-0adebe16b50b.json');
 /*
@@ -29,7 +30,37 @@ function getNfipSheet() {
     });
   });
 }
-function loadBuildingRates(sheets) {
+function loadPrpRateTables(sheets) {
+  return Promise.all(
+    sheets.filter(sheet => prpRateTables.includes(sheet.title))
+      .map(sheet => new Promise((resolve, reject) => {
+
+      sheet.getRows({ }, function (err, rows) {
+        if (err) return reject(err);
+
+        resolve({
+          tableName: sheet.title,
+          rows: rows.map(row => ({
+            effective_date: Date.parse(row.effectivedate),
+            building_coverage: parseInt(row.buildingcoverage),
+            contents_coverage: parseInt(row.contentscoverage),
+            base_premium: parseInt(row.basepremium),
+            building_type: row.buildingtype,
+            contents_location: row.contentslocation,
+            occupancy_type: row.occupancytype
+          }))
+        });
+      });
+  })))
+  .then(tables => {
+    return tables.reduce((result, table) => {
+      result[table.tableName] = table.rows;
+      return result;
+    }, { });
+  });
+
+}
+function loadRateTables(sheets) {
   return Promise.all(
     sheets.filter(sheet => rateTables.includes(sheet.title))
       .map(sheet => new Promise((resolve, reject) => {
@@ -135,7 +166,6 @@ function loadLookupTable(sheets) {
     lookupTable.getRows({ }, function (err, rows) {
       resolve(rows.map(row => ({
         firm_table: row.firmtable,
-        //firm_zone: parseZone(row.firmzone),
         firm_zone: row.firmzone,
         rating_type: row.ratingtype,
         residence_type: row.residencetype,
@@ -144,7 +174,10 @@ function loadLookupTable(sheets) {
         program_type: row.programtype,
         building_type: row.buildingtype,
         no_disaster_benefits: row.nodisasterbenefits,
-        no_multiple_claims: row.nomultipleclaims
+        no_multiple_claims: row.nomultipleclaims,
+        request_prp: row.requestprp ? (row.requestprp === 'TRUE') : null
+        //no_disaster_benefits: row.nodisasterbenefits ? (row.nodisasterbenefits === 'TRUE') : null,
+        //no_multiple_claims: row.nomultipleclaims
       })));
     });
   });
@@ -164,7 +197,9 @@ async function load () {
     await setAuth();
 
     const nfipSheet = await getNfipSheet();
-    const rates = await loadBuildingRates(nfipSheet);
+    console.log('parsing NFIP tables...');
+    const rates = await loadRateTables(nfipSheet);
+    const prpRates = await loadPrpRateTables(nfipSheet);
     const lookupTable = await loadLookupTable(nfipSheet);
     const limits = await loadLimits(nfipSheet);
     const deductibles = await loadDeductibles(nfipSheet);
@@ -174,7 +209,7 @@ async function load () {
     console.log('writing rate-table.json...');
     await writeFile({
       lookupTable,
-      rates,
+      rates: { ...rates, ...prpRates },
       limits,
       deductibles,
       policies,

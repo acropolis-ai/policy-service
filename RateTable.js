@@ -356,6 +356,25 @@ class RateTable {
     };
   }
 
+  getReplacementCostRatio (params) {
+    if (params.replacement_cost_ratio) return params.replacement_cost_ratio;
+
+    if (params.replacement_cost) {
+      let ratio = params.building_coverage / params.replacement_cost;
+      if (ratio < 0.50) {
+        return '<50%';
+      }
+      else if (ratio >= 0.50 && ratio < 0.75) {
+        return '50-74%';
+      }
+      else {
+        return '>75%';
+      }
+    }
+
+    return null;
+  }
+
   getRates (params) {
     const lookupTable = this.getLookupTable(params);
     const {
@@ -365,10 +384,11 @@ class RateTable {
       firm_zone,
       certification,
       elevation_above_bfe,
-      replacement_cost_ratio,
       floors,
       contents_location
     } = params;
+
+    params.replacement_cost_ratio = this.getReplacementCostRatio(params);
 
     if (/^PRP/.test(lookupTable)) {
       return this.getPrpRates(params, lookupTable);
@@ -381,7 +401,7 @@ class RateTable {
           !rate.building_type || (rate.building_type === building_type),
           !rate.occupancy_type || (rate.occupancy_type === occupancy_type),
           !rate.certification || (rate.certification === certification),
-          !rate.replacement_cost_ratio || (rate.replacement_cost_ratio === replacement_cost_ratio),
+          !rate.replacement_cost_ratio || (rate.replacement_cost_ratio === params.replacement_cost_ratio),
           RateTable.compareRule(rate.elevation_above_bfe, elevation_above_bfe),
           RateTable.compareRule(rate.floors, floors),
           !rate.firm_zone || (RateTable.parseZone(rate.firm_zone).includes(firm_zone))

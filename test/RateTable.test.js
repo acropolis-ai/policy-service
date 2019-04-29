@@ -942,10 +942,11 @@ describe('RateTable', () => {
         no_multiple_claims: true,
         occupancy_type: 'residential_single_family',
         floors: 2,
-        date: new Date('1/1/2019')
+        date: new Date('1/1/2019'),
+        replacement_cost: 200000
       });
 
-      //console.log(premium);
+      console.log(premium);
 
       assert(premium.combined_subtotal === 345);
       assert(premium.icc_premium === 5);

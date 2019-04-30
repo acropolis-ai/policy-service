@@ -162,6 +162,8 @@ class RateTable {
       premium.probation_surcharge +
       premium.federal_policy_fee;
 
+    premium.rates = rates;
+
     const alternatePremium = this.getAlternatePremium(params);
 
     if (!alternatePremium || alternatePremium.combined_total > premium.combined_total) {
@@ -213,10 +215,10 @@ class RateTable {
   }
 
   getAlternatePremium (params) {
-    if (params.prp_eligible) {
+    if (params.rating_type !== 'prp' && params.prp_eligible) {
       return this.getPremium({ ...params, rating_type: 'prp' });
     }
-    else if (params.optional_post_firm) {
+    else if (params.rating_type !== 'post_firm' && params.optional_post_firm) {
       return this.getPremium({ ...params, rating_type: 'post_firm' });
     }
     else {
